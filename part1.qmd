@@ -1,0 +1,159 @@
+---
+title: "Billboard Song Longevity Analysis"
+subtitle: "Exploring Factors Influencing the Number of Weeks at #1 on the Billboard Hot 100"
+author: 
+  - "Bridgetta Addo-Quaynor"
+  - "Zijian Wang"
+  - "Donglin Yu"
+  - "Xiaohan Zhang"
+institute: "Trent University – AMOD 5240: Applied Modelling and Quantitative Methods"
+date: "October 30, 2025"
+format: 
+  pdf:
+    number-sections: false
+    toc: false
+    fontsize: 12pt
+    geometry:
+      - margin=1in
+bibliography: references.bib
+csl: https://www.zotero.org/styles/apa
+link-citations: true
+---
+
+```{r}
+#| label: setup
+#| echo: false
+#| message: false
+#| warning: false
+
+# Load packages
+library(tidytuesdayR)
+library(tidyverse)
+library(rstatix)
+library(knitr)
+```
+
+# Project – Part 1  
+## Data Background and Variables  
+**Instructor:** Dave Riegert  
+**Group:** 6  
+**Due Date:** October 30, 2025
+
+\newpage
+
+## 1. Dataset Introduction
+
+**Origin.**  
+The dataset used in this project originates from the **TidyTuesday Project** (week of **August 26, 2025**) [@tidytuesday2025].  
+It compiles information on all songs that reached **number one on the Billboard Hot 100** between **1958 and 2023**, combining chart data from *Billboard* [@billboard2025] with musical and acoustic features from the *Spotify Web API* [@spotifyapi2025] and genre metadata from the *Discogs Database* [@discogs2025].  
+Each observation represents a song that achieved the top chart position along with quantitative attributes describing its audio profile, lyrical content, and production characteristics.
+
+**Purpose.**  
+The dataset was created to provide a comprehensive, publicly available resource for analyzing how musical, lyrical, and stylistic factors relate to commercial success.  
+By linking measurable song features to chart performance, it enables data-driven exploration of trends in popular music.
+
+**Importance.**  
+This dataset is particularly valuable for studying **chart longevity**—that is, the factors that help a song remain at #1 for longer periods.  
+It allows researchers to examine how variables such as *energy*, *danceability*, *happiness (valence)*, *explicit lyrics*, and *genre* influence a track’s staying power, while also revealing how musical preferences have evolved across decades.
+
+**Citations.**  
+Data were collected and cleaned by the TidyTuesday community and are publicly available via GitHub [@tidytuesday2025].  
+Billboard chart rankings [@billboard2025], Spotify audio features [@spotifyapi2025], and Discogs genre classifications [@discogs2025] serve as the primary sources.
+
+## 2. Variable Descriptions
+
+```{r}
+#| tbl-cap: "Variable Descriptions for Selected Features"
+#| echo: false
+
+variables <- tibble::tibble(
+  Variable = c("weeks_at_number_one", "energy", "danceability", "happiness", "explicit", "cdr_genre"),
+  Description = c(
+    "Number of consecutive weeks a song held #1",
+    "Overall intensity and activity level",
+    "How suitable the track is for dancing",
+    "Positivity or emotional valence",
+    "Whether the song contains explicit lyrics",
+    "Primary music genre"
+  ),
+  Type = c("Quantitative", "Quantitative", "Quantitative", "Quantitative", "Categorical", "Categorical"),
+  Role = c("Response", "Predictor", "Predictor", "Predictor", "Predictor", "Predictor")
+)
+
+kable(variables)
+```
+
+## 3. Research Context
+
+**Research Question**  
+
+- What musical and lyrical characteristics help a song stay longer at #1 on the Billboard Hot 100?
+- Are higher energy or danceability scores associated with longer chart durations?  
+- Do positive emotional tones (happiness/valence) predict chart longevity?  
+- Are songs with explicit lyrics less likely to remain #1 compared to non-explicit tracks, after controlling for genre?
+
+**Suitability for Linear Regression**
+
+- The response variable (`weeks_at_number_one`) is continuous and unbounded on the positive axis.  
+- Predictors include both quantitative and categorical types, allowing interpretation of effect sizes.  
+- The dataset contains hundreds of unique songs representing independent observations.  
+- Sample size is adequate for a multiple-regression framework.
+
+## 4. Data Quality Considerations
+
+- **Missing values:** Only two missing entries in each numerical feature (`danceability`, `energy`, `happiness`, `acousticness`, `bpm`) and 88 missing genres. Missing values are summarized in @tbl-missing-data. Missing genres are coded as *Unknown* to retain these observations.
+- **Potential outliers:** A few extreme values in `weeks_at_number_one` were identified using the IQR rule (see @tbl-outliers). These outliers represent songs with unusually long runs at #1.
+- **Independence:** Observations represent distinct songs and can reasonably be treated as independent for analysis.  
+- **Data sufficiency:** The dataset provides ample sample size and variable diversity to support regression-based inference.
+
+\newpage
+## Appendix
+
+```{r}
+#| message: false
+#| warning: false
+#| tbl-cap: "Summary of Missing Data for Selected Variables"
+#| label: tbl-missing-data
+
+# Load Billboard dataset (week of 2025-08-26)
+tt <- tt_load("2025-08-26")
+billboard <- tt[["billboard"]]
+
+# Select key variables used in analysis
+df <- billboard %>%
+  transmute(
+    weeks_at_number_one = as.numeric(weeks_at_number_one),
+    danceability        = as.numeric(danceability),
+    energy              = as.numeric(energy),
+    happiness           = as.numeric(happiness),
+    explicit            = as.numeric(explicit),
+    cdr_genre           = cdr_genre
+  )
+
+# 1) Summarize missing data counts for each variable
+missing_summary <- df %>%
+  summarise(across(everything(), ~sum(is.na(.)))) %>%
+  pivot_longer(everything(),
+               names_to = "variable",
+               values_to = "missing_count") %>%
+  arrange(desc(missing_count))
+
+kable(missing_summary)
+```
+
+```{r tbl-outliers}
+#| message: false
+#| warning: false
+#| tbl-cap: "Extreme Outliers in weeks_at_number_one"
+
+# Detect extreme outliers for the response variable only
+outlier_summary <- df %>%
+  identify_outliers(weeks_at_number_one) %>%
+  filter(is.extreme == TRUE) %>%
+  summarise(n_extreme_outliers = n())
+
+kable(outlier_summary)
+```
+
+\newpage
+## References
