@@ -157,3 +157,10 @@ kable(outlier_summary)
 
 \newpage
 ## References
+
+::: {#refs}
+:::
+
+## Acknowledgments
+ChatGPT was used to help with proofreading the report.
+ChatGPT was used to calculate the missing values for the variables.
